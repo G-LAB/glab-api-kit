@@ -11,6 +11,7 @@ class Profile extends CI_Model
 		$this->load->helper('glib_validation');
 		$this->load->helper('glib_number');
 		$this->load->helper('glib_string');
+		$this->load->library('User_Notice');
 	}
 	
 	public function get($str) 
@@ -107,7 +108,9 @@ class Profile_Base
 	private $data = false;
 	
 	public $address;
+	public $delegate;
 	public $email;
+	public $manager;
 	public $meta;
 	public $name;
 	public $tel;
@@ -117,7 +120,9 @@ class Profile_Base
 		$this->pid = $pid;
 		
 		$this->address = new Profile_Address(&$this);
+		$this->delegate = new Profile_Delegate(&$this);
 		$this->email = new Profile_Email(&$this);
+		$this->manager = new Profile_Manager(&$this);
 		$this->meta = new Profile_Meta(&$this);
 		$this->name = new Profile_Name(&$this);
 		$this->tel = new Profile_Tel(&$this);
@@ -160,11 +165,10 @@ class Profile_Base
 			
 			// If we haven't returned something, property is undefined.
 			$trace = debug_backtrace();
-			trigger_error(
+			show_error(
 				'Undefined property via __get(): ' . $key .
 				' in ' . $trace[0]['file'] .
-				' on line ' . $trace[0]['line'],
-				E_USER_NOTICE);
+				' on line ' . $trace[0]['line']);
 		}
 		
 		return null;
@@ -179,12 +183,6 @@ class Profile_Base
 		}
 		
 		return isset($this->data[$key]);
-	}
-	
-	public function __unset($key) 
-	{
-		trigger_error('Unsetting "'.$key.'" will only remove key from local object, not the database.', E_USER_NOTICE);
-		unset($this->data[$key]);
 	}
 	
 	public function __toString() 
@@ -209,6 +207,11 @@ class Profile_Base
 		{
 			return false;
 		}
+	}
+	
+	public function is_company()
+	{
+		return (bool) $this->__get('is_company');
 	}
 	
 	public function is_employee()
@@ -239,6 +242,82 @@ class Profile_Base
 	
 }
 
+abstract class Profile_Prototype
+{
+	protected $base;
+	protected $data = array();
+	protected $fields;
+	protected $table_name;
+	
+	public function __construct($base)
+	{
+		$this->base = $base;
+	}
+
+	public function __get($key) 
+	{
+		$CI =& get_instance();
+		$CI->load->helper('array');
+		return element($key,$this->data);
+	}
+
+	public function __set($key,$value)
+	{
+		$this->_get_data();
+
+		if (in_array($key,$this->fields) === true)
+		{
+			if ($this->validate($key,$value))
+			{
+				$this->data[$key] = $value;	
+			}
+		}
+		else
+		{
+			show_error('Key "'.$key.'" is not a valid column in '.$this->table_name);
+		}
+	}
+
+	private function _get_data()
+	{
+		if (empty($this->fields) === true)
+		{
+			$CI =& get_instance();
+			$this->fields = $CI->db->list_fields($this->table_name);
+		}
+		return true;
+	}
+
+	public function save()
+	{
+		if ($this->callback())
+		{
+			$this->data['pid'] = $this->base->pid;
+
+			$CI =& get_instance();
+			$CI->db->insert($this->table_name,$this->data);
+
+			if ($CI->db->affected_rows() > 0)
+			{
+				return true;
+			}
+			else
+			{
+				User_Notice::error('A database error prevented the profile record from being saved.');
+			}
+		}
+
+		return false;
+	}
+
+	protected function callback()
+	{
+		return true;
+	}
+
+	abstract protected function validate($key,$value);
+}
+
 /**
  * COMPONENT CLASSES
  */
@@ -247,29 +326,206 @@ class Profile_Base
 class Profile_Address
 {
 	private $base;
-	private $data;
+	private $data = array();
 	
 	public function __construct($base)
 	{
 		$this->base = $base;
+	}
+	
+	private function _get_data()
+	{
+		$CI =& get_instance();
+		
+		$CI->load->helpers('array');
+		
+		$q = $CI->db->where('pid',$this->base->pid);
+		$r = $q->limit(10)->get('profiles_address')->result_array();
+		
+		if (count($r) > 0)
+		{
+			foreach ($r as $addr)
+			{
+				$data[] = new Profile_Address_Entry(&$this->base,&$addr);
+			}
+			$this->data = $data;
+			return true;
+		}
+		 
+	}
+	
+	public function fetch_array()
+	{
+		$this->_get_data();
+		
+		return $this->data;
+	}
+
+	public function prototype()
+	{
+		$prototype = new Profile_Address_Prototype($this->base);
+		return $prototype;
 	}
 }
 
 class Profile_Address_Entry
 {
 	private $base;
-	private $data;
+	private $data = array();
+	
+	public function __construct($base,$data)
+	{
+		$this->base = $base;
+		$this->data = $data;
+	}
+	
+	public function __get($key)
+	{
+		return element($key,$this->data);
+	}
+	
+	public function __isset($key) 
+	{		
+		return isset($this->data[$key]);
+	}
+	
+	public function __toString()
+	{
+		$str = $this->__get('street1')."\n";
+		$str.= $this->__get('street2')."\n";
+		$str.= $this->__get('city').', '.$this->__get('state').'  '.$this->__get('zip')."\n";
+		$str.= $this->__get('country')."\n";
+		
+		return $address;
+	}
+}
+
+class Profile_Address_Prototype extends Profile_Prototype
+{
+	protected $table_name = 'profiles_address';
+
+	protected function callback()
+	{
+		if(isset($this->data['street1'],$this->data['city'],$this->data['state'],$this->data['zip'],$this->data['country']))
+		{
+			return true;
+		}
+		else
+		{
+			User_Notice::error('Street, City, State, Zip, and Country are required fields.');
+		}
+	}
+
+	protected function validate($key,$value)
+	{
+		switch($key)
+		{
+		    case 'type':
+		    	return true;
+		    break;
+		    case 'label':
+		    	return true;
+		    break;
+		    case 'street1':
+		    case 'street2':
+		        if(preg_match('/^[a-z\d\-\.\s#]*$/i',$value))
+		        {
+		        	return true;
+		        }
+		        else
+		        {
+		        	User_Notice::error('Street must contain alphanumeric characters, dashes, periods, and pound signs only.');
+		        }
+		    break;
+		    case 'city':
+		    	return true;
+		    break;
+		    case 'state':
+		    	return true;
+		    break;
+		    case 'zip':
+		    	return true;
+		    break;
+		    case 'country':
+		    	return true;
+		    break;
+		    default:
+		        return false;
+		    break;
+		}
+	}
+}
+
+class Profile_Delegate
+{
+	private $base;
+	private $data = array();
 	
 	public function __construct($base)
 	{
 		$this->base = $base;
+	}
+
+	public function _get_data()
+	{
+		$CI =& get_instance();
+		
+		$CI->load->helpers('array');
+		
+		$q = $CI->db->where('pid_c',$this->base->pid);
+		$r = $q->limit(50)->get('profiles_manager')->result_array();
+		
+		if (count($r) > 0)
+		{
+			foreach ($r as $delegate)
+			{
+				$data[] = new Profile_Delegate_Entry(&$this->base,&$delegate);
+			}
+			$this->data = $data;
+			return true;
+		}
+
+	}
+
+	public function fetch_array()
+	{
+		$this->_get_data();
+
+		return $this->data;
+	}
+}
+
+class Profile_Delegate_Entry
+{
+	private $base;
+	private $data = array();
+	public $profile;
+	
+	public function __construct($base,$data)
+	{
+		$CI =& get_instance();
+		$this->base = $base;
+		$this->data = $data;
+		$this->profile = $CI->profile->get(element('pid_p',$data));
+	}
+	
+	public function __get($key) 
+	{
+		$CI =& get_instance();
+		$CI->load->helper('array');
+		return element($key,$this->data);
+	}
+	
+	public function __isset($key)
+	{
+		return isset($this->data[$key]);
 	}
 }
 
 class Profile_Email
 {
 	private $base;
-	private $data;
+	private $data = array();
 	
 	public function __construct($base)
 	{
@@ -322,7 +578,7 @@ class Profile_Email
 		}
 		else
 		{
-			trigger_error('Could not add email address "'.$str.'" to user, format is invalid.', E_USER_NOTICE);
+			User_Notice::error('Could not add email address "'.$str.'" to user, format is invalid.');
 		}
 	}
 	
@@ -370,7 +626,7 @@ class Profile_Email
 class Profile_Email_Entry
 {
 	private $base;
-	private $data;
+	private $data = array();
 	
 	public function __construct($base,$data)
 	{
@@ -386,7 +642,7 @@ class Profile_Email_Entry
 		}
 		else
 		{
-			trigger_error('Cannot perform set on fields other than "is_primary."', E_USER_NOTICE);
+			show_error('Cannot perform set on fields other than "is_primary."');
 		}
 	}
 	
@@ -414,10 +670,76 @@ class Profile_Email_Entry
 	}
 }
 
+class Profile_Manager
+{
+	private $base;
+	private $data = array();
+	
+	public function __construct($base)
+	{
+		$this->base = $base;
+	}
+
+	public function _get_data()
+	{
+		$CI =& get_instance();
+		
+		$CI->load->helpers('array');
+		
+		$q = $CI->db->where('pid_p',$this->base->pid);
+		$r = $q->limit(50)->get('profiles_manager')->result_array();
+		
+		if (count($r) > 0)
+		{
+			foreach ($r as $manager)
+			{
+				$data[] = new Profile_Manager_Entry(&$this->base,&$manager);
+			}
+			$this->data = $data;
+			return true;
+		}
+
+	}
+
+	public function fetch_array()
+	{
+		$this->_get_data();
+
+		return $this->data;
+	}
+}
+
+class Profile_Manager_Entry
+{
+	private $base;
+	private $data = array();
+	public $profile;
+	
+	public function __construct($base,$data)
+	{
+		$CI =& get_instance();
+		$this->base = $base;
+		$this->data = $data;
+		$this->profile = $CI->profile->get(element('pid_c',$data));
+	}
+	
+	public function __get($key) 
+	{
+		$CI =& get_instance();
+		$CI->load->helper('array');
+		return element($key,$this->data);
+	}
+	
+	public function __isset($key) 
+	{
+		return isset($this->data[$key]);
+	}
+}
+
 class Profile_Meta
 {
 	private $base;
-	private $data;
+	private $data = array();
 	private $meta_keys;
 	
 	function __construct($base)
@@ -437,17 +759,18 @@ class Profile_Meta
 	{	
 		if (in_array($key, $this->meta_keys))
 		{
-			trigger_error('Meta keys are currently read-only.');
+			show_error('Meta values are currently read-only.');
 		}
 		else
 		{
-			trigger_error("Meta key $key is invalid.", E_USER_NOTICE);
+			show_error("Meta key $key is invalid.");
 		}
 	}
 	
 	public function __get($key) 
 	{
 		$CI =& get_instance();
+		
 		$CI->load->helper('array');
 		
 		if (is_array($this->data) !== true)
@@ -456,6 +779,17 @@ class Profile_Meta
 		}
 		
 		return element($key,$this->data);
+	}
+	
+	public function __isset($key) 
+	{
+		// Check If Data Available
+		if (is_array($this->data) != true)
+		{
+			$this->_get_data();
+		}
+		
+		return isset($this->data[$key]);
 	}
 	
 	public function __toString() 
@@ -483,7 +817,7 @@ class Profile_Meta
 class Profile_Name
 {
 	private $base;
-	private $data;
+	private $data = array();
 	
 	function __construct($base)
 	{
@@ -500,7 +834,7 @@ class Profile_Name
 		}
 		else
 		{
-			trigger_error('Cannot write to variable "'.$key.'."', E_USER_NOTICE);
+			show_error('Cannot write to variable "'.$key.'."');
 		}
 	}
 	
@@ -541,7 +875,7 @@ class Profile_Name
 	private function _get_name($full=false,$posessive=false)
 	{
 		// Is it a company?
-		if ($this->base->__get('is_company') == true) {
+		if ($this->base->is_company() === true) {
 			$name = $this->base->__get('name_company');
 		
 		// No?  It must be a person.
@@ -576,7 +910,7 @@ class Profile_Name
 class Profile_Tel
 {
 	private $base;
-	private $data;
+	private $data = array();
 	
 	public function __construct($base)
 	{
@@ -604,29 +938,6 @@ class Profile_Tel
 		 
 	}
 	
-	public function add ($tel_number, $type='voice', $label=false)
-	{
-		$CI =& get_instance();
-		
-		if (is_phone($tel_number) === true)
-		{
-			$q = $CI->db	
-					->set('pid',$this->base->pid)
-					->set('tel',$tel_number)
-					->set('type',$type)
-					->insert('profiles_tel');
-			if (empty($label) !== true)
-			{
-				$q->set('label',$label);
-			}
-			$this->_get_data();
-		}
-		else
-		{
-			trigger_error('Could not add telephone number "'.$tel_number.'" to user, format is invalid.', E_USER_NOTICE);
-		}
-	}
-	
 	public function fetch_array()
 	{
 		// Get Data On Every Call
@@ -636,13 +947,19 @@ class Profile_Tel
 		
 		return $data;
 	}
+
+	public function prototype()
+	{
+		$prototype = new Profile_Tel_Prototype($this->base);
+		return $prototype;
+	}
 	
 }
 
 class Profile_Tel_Entry
 {
 	private $base;
-	private $data;
+	private $data = array();
 	
 	public function __construct($base,$data)
 	{
@@ -657,7 +974,12 @@ class Profile_Tel_Entry
 	
 	public function __get ($key)
 	{
-		
+		return element($key,$this->data);
+	}
+	
+	public function __isset($key) 
+	{
+		return isset($this->data[$key]);
 	}
 	
 	public function delete()
@@ -671,6 +993,37 @@ class Profile_Tel_Entry
 	public function __toString() 
 	{
 		return $this->data['tel'];
+	}
+}
+
+class Profile_Tel_Prototype extends Profile_Prototype
+{
+	protected $table_name = 'profiles_tel';
+
+	protected function validate($key,$value)
+	{
+		switch($key)
+		{
+		    case 'type':
+		    	return true;
+		    break;
+		    case 'label':
+		    	return true;
+		    break;
+		    case 'tel':
+		        if(is_tel($value))
+		        {
+		        	return true;
+		        }
+		        else
+		        {
+		        	User_Notice::error($value.' is not a valid US or international phone number.');
+		        }
+		    break;
+		    default:
+		        return false;
+		    break;
+		}
 	}
 }
 
