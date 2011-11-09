@@ -24,7 +24,7 @@ class Profile extends CI_Model
 		$pid = false;
 		
 		// EID
-		if (is_numeric($str) === true && strlen($str) <= 2) {
+		if (ctype_digit($str) === true && strlen($str) <= 2) {
 			$q = $this->db->select('acctnum')->where('eid',$str);
 			$r = $q->get('entities')->row_array();
 			$pid = element('acctnum',$r);
@@ -34,16 +34,17 @@ class Profile extends CI_Model
 		{
 			$pid = $str;
 		} 
-		// Account Number as Fromatted String
-		elseif (is_account_number($str))
-		{
-			$pid = preg_replace('/\D/','', $str);
-		}
 		// Account Number as Hexadecimal
 		elseif (is_hex($str) === true)
 		{
 			$pid = hexdec($str);
 		}
+		// Account Number as Fromatted String
+		elseif (is_account_number($str))
+		{
+			$pid = preg_replace('/\D/','', $str);
+		}
+		// Email Address
 		elseif (is_email($str))
 		{
 			$q = $this->db	->select('pid')
@@ -61,11 +62,12 @@ class Profile extends CI_Model
 				$pid = false;
 			}
 		}
+		// Telephone Number
 		elseif (is_tel($str))
 		{
 			$q = $this->db	->select('pid')
 							->limit(1)
-							->where('tel',tel_dialtring($str))
+							->where('tel',tel_dialstring($str))
 							->get('profiles_tel')
 							->row();
 			if (isset($q->pid))
@@ -77,9 +79,10 @@ class Profile extends CI_Model
 				$pid = false;
 			}
 		}
+
 		
 		// Create Profile in Class If Needed
-		if (!isset($this->profiles[$pid]) == true)
+		if (isset($this->profiles[$pid]) !== true)
 		{
 			$this->profiles[$pid] = new Profile_Base($pid);
 		}
