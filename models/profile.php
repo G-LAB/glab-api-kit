@@ -113,6 +113,7 @@ class Profile_Base
 	public $manager;
 	public $meta;
 	public $name;
+	public $security;
 	public $tel;
 	
 	public function __construct($pid) 
@@ -125,6 +126,7 @@ class Profile_Base
 		$this->manager = new Profile_Manager(&$this);
 		$this->meta = new Profile_Meta(&$this);
 		$this->name = new Profile_Name(&$this);
+		$this->security = new Profile_Security(&$this);
 		$this->tel = new Profile_Tel(&$this);
 	}
 	
@@ -747,9 +749,9 @@ class Profile_Meta
 		$this->base = $base;
 		
 		$this->meta_keys = array(
-			'dt_date_format',
-			'dt_time_format',
-			'dt_zone',
+			'is_employee',
+			'time_format',
+			'time_zone',
 			'pbx_ext',
 			'pbx_ext_mbox'
 		);
@@ -759,7 +761,20 @@ class Profile_Meta
 	{	
 		if (in_array($key, $this->meta_keys))
 		{
-			show_error('Meta values are currently read-only.');
+			$CI =& get_instance();
+			$CI->load->helper('array');
+
+			if (is_bool($value) === true)
+			{
+				$value = (int) $value;
+			}
+
+			$CI->db->query("REPLACE INTO profiles_meta (pid,meta_key,meta_value) VALUES ('".$this->base->pid."','".$key."','".$value."')");
+			
+			if ($CI->db->affected_rows() > 0)
+			{
+				return true;
+			}
 		}
 		else
 		{
@@ -770,46 +785,48 @@ class Profile_Meta
 	public function __get($key) 
 	{
 		$CI =& get_instance();
-		
 		$CI->load->helper('array');
+		$this->_get_data();
 		
-		if (is_array($this->data) !== true)
+		if (element($key,$this->data) !== false)
 		{
-			$this->_get_data();
+			return element($key,$this->data);
 		}
-		
-		return element($key,$this->data);
+		else
+		{
+			return $this->default_value($key);
+		}
 	}
 	
 	public function __isset($key) 
 	{
-		// Check If Data Available
-		if (is_array($this->data) != true)
-		{
-			$this->_get_data();
-		}
-		
+		$this->_get_data();
 		return isset($this->data[$key]);
 	}
 	
-	public function __toString() 
+	private function _get_data($refresh=false)
 	{
-		// Return full name when class is echoed.
-		return '';
+		if (empty($this->data) === true OR $refresh === true)
+		{
+			$CI =& get_instance();
+			$CI->load->helpers('glib_array');
+			$q = $CI->db	->where('pid',$this->base->pid)
+							->limit(100)
+							->get('profiles_meta')
+							->result_array();
+			
+			$this->data = array_flatten($q, 'meta_key', 'meta_value');
+		}
 	}
-	
-	private function _get_data()
+
+	private function default_value($key)
 	{
-		$CI =& get_instance();
-		
-		$CI->load->helpers('glib_array');
-		
-		$q = $CI->db	->where('pid',$this->base->pid)
-						->limit(100)
-						->get('profiles_meta')
-						->result_array();
-		
-		$this->data = array_flatten($q, 'meta_key', 'meta_value');
+		$default_values = array(
+			'time_zone'=>'UM8',
+			'time_format'=>0
+		);
+
+		return element($key,$default_values);
 	}
 	
 }
@@ -907,6 +924,115 @@ class Profile_Name
 	}
 }
 
+class Profile_Security
+{
+	private $base;
+	public $multifactor;
+	
+	public function __construct($base)
+	{
+		$this->base = $base;
+
+		$this->multifactor->yubikey = new Profile_Security_Yubikey(&$base);
+	}
+
+	public function validate_password($str)
+	{
+		
+	}
+	
+}
+
+abstract class Profile_Security_Multifactor
+{
+	protected $base;
+
+	public function __construct($base)
+	{
+		$this->base = $base;
+	}
+
+	abstract public function credentials();
+	abstract public function register($arg1);
+}
+
+class Profile_Security_Multifactor_Credential
+{
+	public $base;
+	public $data;
+	private $table_name;
+
+	public function __construct($base,$data,$table_name)
+	{
+		$this->base = &$base;
+		$this->data = &$data;
+		$this->table_name = $table_name;
+	}
+
+	public function __get($key)
+	{
+		return element($key,$this->data);
+	}
+
+	public function revoke()
+	{
+		$CI =& get_instance();
+
+		$q = $CI->db	->where($this->data)
+						->limit(1)
+						->delete($this->table_name);
+		
+		if ($CI->db->affected_rows() > 0)
+		{
+			User_Notice::success('Security credential revoked successfully.');
+		}
+		else
+		{
+			User_Notice::error('Security credential could not be revoked.');
+		}
+	}
+}
+
+class Profile_Security_Yubikey extends Profile_Security_Multifactor
+{
+	public function credentials($offset=0,$limit=10)
+	{
+		$CI =& get_instance();
+
+		$q = $CI->db->	where('pid',$this->base->pid)
+						->limit($limit,$offset)
+						->get('auth_mf_yubikey')
+						->result_array();
+		
+		$data = array();
+
+		foreach ($q as $credential)
+		{
+			$data[] = new Profile_Security_Multifactor_Credential(&$this->base,$credential,'auth_mf_yubikey');
+		}
+
+		return $data;
+	}
+
+	public function register($ykid)
+	{
+		$CI =& get_instance();
+
+		$q = $CI->db	->set('pid',$this->base->pid)
+						->set('ykid',$ykid)
+						->insert('auth_mf_yubikey'); // @todo Needs INSERT IGNORE when added by EllisLab
+
+		if ($CI->db->affected_rows() > 0)
+		{
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+}
+
 class Profile_Tel
 {
 	private $base;
@@ -923,7 +1049,7 @@ class Profile_Tel
 		
 		$CI->load->helpers('array');
 		
-		$q = $CI->db	->where('pid',$this->base->pid);
+		$q = $CI->db->where('pid',$this->base->pid);
 		$r = $q->limit(10)->get('profiles_tel')->result_array();
 		
 		if (count($r) > 0)
