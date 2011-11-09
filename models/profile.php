@@ -752,6 +752,7 @@ class Profile_Meta
 			'is_employee',
 			'time_format',
 			'time_zone',
+			'pbx_callback',
 			'pbx_ext',
 			'pbx_ext_mbox'
 		);
@@ -823,7 +824,7 @@ class Profile_Meta
 	{
 		$default_values = array(
 			'time_zone'=>'UM8',
-			'time_format'=>0
+			'time_format'=>12
 		);
 
 		return element($key,$default_values);
