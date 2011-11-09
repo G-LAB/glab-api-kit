@@ -21,6 +21,21 @@ class User_Notice
 
 	static function fetch_array()
 	{
+		$CI = &get_instance();
+
+		if (isset($CI->form_validation) === true)
+		{
+			$errors = explode("||",validation_errors("\t",'||'));
+
+			foreach ($errors as $msg)
+			{
+				if (strlen(trim($msg)) > 0)
+				{
+					self::$data[] = new User_Notice_Entry($msg,'error');
+				}
+			}
+		}
+
 		return self::$data;
 	}
 }
@@ -29,11 +44,15 @@ class User_Notice_Entry
 {
 	private $data;
 
-	function __construct($msg,$type,$backtrace)
+	function __construct($msg,$type,$backtrace=false)
 	{
 		$this->data['msg'] = $msg;
 		$this->data['type'] = $type;
-		$this->data['backtrace'] = $backtrace[1];
+		
+		if ($backtrace !== false)
+		{
+			$this->data['backtrace'] = $backtrace[1];
+		}
 	}
 
 	public function __get($key) 
