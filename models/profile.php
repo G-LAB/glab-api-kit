@@ -100,6 +100,28 @@ class Profile extends CI_Model
 		$pid = $this->acl->get_pid();
 		return $this->get($pid);
 	}
+
+	public function add($name_first,$name_last=false)
+	{
+		$pid = substr(hexdec(uniqid()),-16);
+
+		$q = $this->db->set('pid',$pid);
+
+		if (empty($name_last) === true)
+		{
+			$q->set('is_company',true);
+			$q->set('name_company',$name_first);
+		}
+		else
+		{
+			$q->set('name_first',$name_first);
+			$q->set('name_last',$name_last);
+		}
+
+		$q->insert('profiles');
+
+		return $this->get($pid);
+	}
 	
 }
 
@@ -300,7 +322,7 @@ abstract class Profile_Prototype
 			$this->data['pid'] = $this->base->pid;
 
 			$CI =& get_instance();
-			$CI->db->insert($this->table_name,$this->data);
+			$CI->db->insert($this->table_name,$this->data); // @todo INSERT IGNORE
 
 			if ($CI->db->affected_rows() > 0)
 			{
@@ -704,6 +726,27 @@ class Profile_Manager
 			return true;
 		}
 
+	}
+
+	public function add($pid,$job_title=null)
+	{
+		$CI =& get_instance();
+
+		if ($CI->profile->get($pid)->exists() === true)
+		{
+			$q = $CI->db
+				->set('pid_p',$this->base->pid)
+				->set('pid_c',$pid)
+				->set('job_title',$job_title)
+				->insert('profiles_manager'); // @todo INSERT IGNORE
+
+			if ($CI->db->affected_rows() > 0)
+			{
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	public function fetch_array()
