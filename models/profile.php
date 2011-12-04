@@ -30,7 +30,7 @@ class Profile extends CI_Model
 			$pid = element('acctnum',$r);
 		}
 		// Account Number as Integer
-		elseif (is_numeric($str) === true  && strlen($str) >= 7)
+		elseif (ctype_digit($str) === true  && strlen($str) >= 7)
 		{
 			$pid = $str;
 		} 
