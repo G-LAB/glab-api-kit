@@ -1,10 +1,10 @@
 <?php
 
-class Profile extends CI_Model 
+class Profile extends CI_Model
 {
-	
+
 	private $profiles;
-	
+
 	public function __construct ()
 	{
 		$this->load->helper('glab_validation');
@@ -13,16 +13,16 @@ class Profile extends CI_Model
 		$this->load->helper('glib_string');
 		$this->load->library('User_Notice');
 	}
-	
-	public function get($str) 
+
+	public function get($str)
 	{
-		
-		/* 
+
+		/*
 			Identify ID Format and Process
 		*/
-		
+
 		$pid = false;
-		
+
 		// EID
 		if (ctype_digit($str) === true && strlen($str) <= 2) {
 			$q = $this->db->select('acctnum')->where('eid',$str);
@@ -33,7 +33,7 @@ class Profile extends CI_Model
 		elseif (ctype_digit($str) === true  && strlen($str) >= 7)
 		{
 			$pid = $str;
-		} 
+		}
 		// Account Number as Hexadecimal
 		elseif (is_hex($str) === true)
 		{
@@ -52,7 +52,7 @@ class Profile extends CI_Model
 							->where('email',$str)
 							->get('profiles_email')
 							->row();
-			
+
 			if (isset($q->pid))
 			{
 				$pid = $q->pid;
@@ -80,21 +80,21 @@ class Profile extends CI_Model
 			}
 		}
 
-		
+
 		// Create Profile in Class If Needed
 		if (isset($this->profiles[$pid]) !== true)
 		{
 			$this->profiles[$pid] = new Profile_Base($pid);
 		}
-		
+
 		// Store Reference
 		$profile = &$this->profiles[$pid];
-		
+
 		// Return Reference to Profile in Class
 		return $profile;
 
 	}
-	
+
 	public function current()
 	{
 		$pid = $this->acl->get_pid();
@@ -122,16 +122,16 @@ class Profile extends CI_Model
 
 		return $this->get($pid);
 	}
-	
+
 }
 
-class Profile_Base 
+class Profile_Base
 {
-	
+
 	private $pid;
 	private $dead = false;
 	private $data = false;
-	
+
 	public $address;
 	public $delegate;
 	public $email;
@@ -140,11 +140,11 @@ class Profile_Base
 	public $name;
 	public $security;
 	public $tel;
-	
-	public function __construct($pid) 
+
+	public function __construct($pid)
 	{
 		$this->pid = $pid;
-		
+
 		$this->address = new Profile_Address(&$this);
 		$this->delegate = new Profile_Delegate(&$this);
 		$this->email = new Profile_Email(&$this);
@@ -154,42 +154,42 @@ class Profile_Base
 		$this->security = new Profile_Security(&$this);
 		$this->tel = new Profile_Tel(&$this);
 	}
-	
-	public function __set($key, $value) 
-	{	
+
+	public function __set($key, $value)
+	{
 		$CI =& get_instance();
-		
+
 		$this->_get_data();
-		
+
 		$CI->db->set($key,$value)->where('pid', $this->pid)->update('profiles');
 
 		$this->data[$key] = $value;
 	}
-	
-	public function __get($key) 
-	{	
+
+	public function __get($key)
+	{
 		// Check If Data Available
 		if (is_array($this->data) != true)
 		{
 			$this->_get_data();
 		}
-		
+
 		// Check Again for Data Array
 		if (is_array($this->data) == true)
 		{
 			// Prepare Key
 			$key = trim($key);
-			
+
 			// Check If Requested Data Exists
-			if (array_key_exists($key, $this->data)) 
+			if (array_key_exists($key, $this->data))
 			{
 				return (string) $this->data[$key];
-			} 
+			}
 			elseif ($key == 'pid_hex')
 			{
 				return dechex($this->pid);
 			}
-			
+
 			// If we haven't returned something, property is undefined.
 			$trace = debug_backtrace();
 			show_error(
@@ -197,27 +197,27 @@ class Profile_Base
 				' in ' . $trace[0]['file'] .
 				' on line ' . $trace[0]['line']);
 		}
-		
+
 		return null;
 	}
-	
-	public function __isset($key) 
+
+	public function __isset($key)
 	{
 		// Check If Data Available
 		if (is_array($this->data) != true)
 		{
 			$this->_get_data();
 		}
-		
+
 		return isset($this->data[$key]);
 	}
-	
-	public function __toString() 
+
+	public function __toString()
 	{
 		// Return full name when class is echoed.
 		return (string) $this->name;
 	}
-	
+
 	public function exists()
 	{
 		// Check If Data Available
@@ -225,7 +225,7 @@ class Profile_Base
 		{
 			$this->_get_data();
 		}
-		
+
 		if ($this->data !== false)
 		{
 			return true;
@@ -235,25 +235,24 @@ class Profile_Base
 			return false;
 		}
 	}
-	
+
 	public function is_company()
 	{
 		return (bool) $this->__get('is_company');
 	}
-	
+
 	public function is_employee()
 	{
 		return (bool) $this->meta->is_employee;
 	}
-	
+
 	private function _get_data()
 	{
 		if ($this->dead !== true)
 		{
 			$CI =& get_instance();
-			$q = $CI->db->where('pid',$this->pid);
-			$r = $q->limit(1)->get('profiles')->row_array();
-			
+			$r = $CI->api->request('get','profile/base',array('pid'=>$this->pid));
+
 			if (count($r) > 0)
 			{
 				$this->data = $r;
@@ -261,12 +260,12 @@ class Profile_Base
 			}
 			else
 			{
-				$this->dead = true;	
+				$this->dead = true;
 				return false;
 			}
 		}
 	}
-	
+
 }
 
 abstract class Profile_Prototype
@@ -275,13 +274,13 @@ abstract class Profile_Prototype
 	protected $data = array();
 	protected $fields;
 	protected $table_name;
-	
+
 	public function __construct($base)
 	{
 		$this->base = $base;
 	}
 
-	public function __get($key) 
+	public function __get($key)
 	{
 		$CI =& get_instance();
 		$CI->load->helper('array');
@@ -296,7 +295,7 @@ abstract class Profile_Prototype
 		{
 			if ($this->validate($key,$value))
 			{
-				$this->data[$key] = $value;	
+				$this->data[$key] = $value;
 			}
 		}
 		else
@@ -354,21 +353,21 @@ class Profile_Address
 {
 	private $base;
 	private $data = array();
-	
+
 	public function __construct($base)
 	{
 		$this->base = $base;
 	}
-	
+
 	private function _get_data()
 	{
 		$CI =& get_instance();
-		
+
 		$CI->load->helpers('array');
-		
+
 		$q = $CI->db->where('pid',$this->base->pid);
 		$r = $q->limit(10)->get('profiles_address')->result_array();
-		
+
 		if (count($r) > 0)
 		{
 			foreach ($r as $addr)
@@ -378,13 +377,13 @@ class Profile_Address
 			$this->data = $data;
 			return true;
 		}
-		 
+
 	}
-	
+
 	public function fetch_array()
 	{
 		$this->_get_data();
-		
+
 		return $this->data;
 	}
 
@@ -399,30 +398,30 @@ class Profile_Address_Entry
 {
 	private $base;
 	private $data = array();
-	
+
 	public function __construct($base,$data)
 	{
 		$this->base = $base;
 		$this->data = $data;
 	}
-	
+
 	public function __get($key)
 	{
 		return element($key,$this->data);
 	}
-	
-	public function __isset($key) 
-	{		
+
+	public function __isset($key)
+	{
 		return isset($this->data[$key]);
 	}
-	
+
 	public function __toString()
 	{
 		$str = $this->__get('street1')."\n";
 		$str.= $this->__get('street2')."\n";
 		$str.= $this->__get('city').', '.$this->__get('state').'  '.$this->__get('zip')."\n";
 		$str.= $this->__get('country')."\n";
-		
+
 		return $address;
 	}
 }
@@ -487,7 +486,7 @@ class Profile_Delegate
 {
 	private $base;
 	private $data = array();
-	
+
 	public function __construct($base)
 	{
 		$this->base = $base;
@@ -496,12 +495,12 @@ class Profile_Delegate
 	public function _get_data()
 	{
 		$CI =& get_instance();
-		
+
 		$CI->load->helpers('array');
-		
+
 		$q = $CI->db->where('pid_c',$this->base->pid);
 		$r = $q->limit(50)->get('profiles_manager')->result_array();
-		
+
 		if (count($r) > 0)
 		{
 			foreach ($r as $delegate)
@@ -527,7 +526,7 @@ class Profile_Delegate_Entry
 	private $base;
 	private $data = array();
 	public $profile;
-	
+
 	public function __construct($base,$data)
 	{
 		$CI =& get_instance();
@@ -535,14 +534,14 @@ class Profile_Delegate_Entry
 		$this->data = $data;
 		$this->profile = $CI->profile->get(element('pid_p',$data));
 	}
-	
-	public function __get($key) 
+
+	public function __get($key)
 	{
 		$CI =& get_instance();
 		$CI->load->helper('array');
 		return element($key,$this->data);
 	}
-	
+
 	public function __isset($key)
 	{
 		return isset($this->data[$key]);
@@ -553,30 +552,30 @@ class Profile_Email
 {
 	private $base;
 	private $data = array();
-	
+
 	public function __construct($base)
 	{
 		$this->base = $base;
 	}
-	
-	public function __toString() 
+
+	public function __toString()
 	{
 		// Get Data On Every Call
 		$this->_get_data();
-		
+
 		return (string) array_shift(array_values($this->data));
 	}
-	
+
 	private function _get_data()
 	{
 		$CI =& get_instance();
-		
+
 		$CI->load->helpers('array');
-		
+
 		$q = $CI->db	->where('pid',$this->base->pid)
 						->order_by('is_primary','DESC');
 		$r = $q->limit(10)->get('profiles_email')->result_array();
-		
+
 		if (count($r) > 0)
 		{
 			foreach ($r as $email)
@@ -586,21 +585,21 @@ class Profile_Email
 			$this->data = $data;
 			return true;
 		}
-		 
+
 	}
-	
+
 	public function add ($str)
 	{
 		$CI =& get_instance();
 		$CI->load->helper('glib_validation');
-		
+
 		if (is_email($str) === true)
 		{
-			$q = $CI->db	
+			$q = $CI->db
 					->set('pid',$this->base->pid)
 					->set('email',$str)
 					->insert('profiles_email');
-			
+
 			$this->_get_data();
 		}
 		else
@@ -608,34 +607,34 @@ class Profile_Email
 			User_Notice::error('Could not add email address "'.$str.'" to user, format is invalid.');
 		}
 	}
-	
+
 	public function fetch_array()
 	{
 		// Get Data On Every Call
 		$this->_get_data();
-		
+
 		$data = &$this->data;
-		
+
 		return $data;
 	}
-	
+
 	public function set_primary($emid)
 	{
 		$CI =& get_instance();
-		
+
 		$CI->db->trans_start();
-		
-		$q = $CI->db	
+
+		$q = $CI->db
 					->set('is_primary',false)
 					->where('pid',$this->base->pid)
 					->update('profiles_email');
-		
-		$q = $CI->db	
+
+		$q = $CI->db
 					->set('is_primary',true)
 					->where('pid',$this->base->pid)
 					->where('emid',$emid)
 					->update('profiles_email');
-		
+
 		if ($CI->db->trans_complete())
 		{
 			// Set Other Emails' is_primary To False
@@ -647,20 +646,20 @@ class Profile_Email
 			return true;
 		}
 	}
-	
+
 }
 
 class Profile_Email_Entry
 {
 	private $base;
 	private $data = array();
-	
+
 	public function __construct($base,$data)
 	{
 		$this->base = $base;
 		$this->data = $data;
 	}
-	
+
 	public function __set ($key,$value)
 	{
 		if ($key == 'is_primary')
@@ -672,26 +671,26 @@ class Profile_Email_Entry
 			show_error('Cannot perform set on fields other than "is_primary."');
 		}
 	}
-	
+
 	public function is_primary() {
 		return (bool) $this->data['is_primary'];
 	}
-	
+
 	public function set_primary()
 	{
 		return $this->base->email->set_primary($this->data['emid']);
 	}
-	
+
 	public function delete()
 	{
-		return $CI->db	
+		return $CI->db
 					->set('is_primary',true)
 					->where('pid',$this->base->pid)
 					->where('email',$this->data['email'])
 					->delete('profiles_email');
 	}
-	
-	public function __toString() 
+
+	public function __toString()
 	{
 		return $this->data['email'];
 	}
@@ -701,7 +700,7 @@ class Profile_Manager
 {
 	private $base;
 	private $data = array();
-	
+
 	public function __construct($base)
 	{
 		$this->base = $base;
@@ -710,12 +709,12 @@ class Profile_Manager
 	public function _get_data()
 	{
 		$CI =& get_instance();
-		
+
 		$CI->load->helpers('array');
-		
+
 		$q = $CI->db->where('pid_p',$this->base->pid);
 		$r = $q->limit(50)->get('profiles_manager')->result_array();
-		
+
 		if (count($r) > 0)
 		{
 			foreach ($r as $manager)
@@ -762,7 +761,7 @@ class Profile_Manager_Entry
 	private $base;
 	private $data = array();
 	public $profile;
-	
+
 	public function __construct($base,$data)
 	{
 		$CI =& get_instance();
@@ -770,15 +769,15 @@ class Profile_Manager_Entry
 		$this->data = $data;
 		$this->profile = $CI->profile->get(element('pid_c',$data));
 	}
-	
-	public function __get($key) 
+
+	public function __get($key)
 	{
 		$CI =& get_instance();
 		$CI->load->helper('array');
 		return element($key,$this->data);
 	}
-	
-	public function __isset($key) 
+
+	public function __isset($key)
 	{
 		return isset($this->data[$key]);
 	}
@@ -789,11 +788,11 @@ class Profile_Meta
 	private $base;
 	private $data = array();
 	private $meta_keys;
-	
+
 	function __construct($base)
 	{
 		$this->base = $base;
-		
+
 		$this->meta_keys = array(
 			'is_employee',
 			'time_format',
@@ -803,9 +802,9 @@ class Profile_Meta
 			'pbx_ext_mbox'
 		);
 	}
-	
-	public function __set($key, $value) 
-	{	
+
+	public function __set($key, $value)
+	{
 		if (in_array($key, $this->meta_keys))
 		{
 			$CI =& get_instance();
@@ -817,7 +816,7 @@ class Profile_Meta
 			}
 
 			$CI->db->query("REPLACE INTO profiles_meta (pid,meta_key,meta_value) VALUES ('".$this->base->pid."','".$key."','".$value."')");
-			
+
 			if ($CI->db->affected_rows() > 0)
 			{
 				return true;
@@ -828,13 +827,13 @@ class Profile_Meta
 			show_error("Meta key $key is invalid.");
 		}
 	}
-	
-	public function __get($key) 
+
+	public function __get($key)
 	{
 		$CI =& get_instance();
 		$CI->load->helper('array');
 		$this->_get_data();
-		
+
 		if (element($key,$this->data) !== false)
 		{
 			return element($key,$this->data);
@@ -844,25 +843,19 @@ class Profile_Meta
 			return $this->default_value($key);
 		}
 	}
-	
-	public function __isset($key) 
+
+	public function __isset($key)
 	{
 		$this->_get_data();
 		return isset($this->data[$key]);
 	}
-	
+
 	private function _get_data($refresh=false)
 	{
 		if (empty($this->data) === true OR $refresh === true)
 		{
 			$CI =& get_instance();
-			$CI->load->helpers('glib_array');
-			$q = $CI->db	->where('pid',$this->base->pid)
-							->limit(100)
-							->get('profiles_meta')
-							->result_array();
-			
-			$this->data = array_flatten($q, 'meta_key', 'meta_value');
+			$this->data = $CI->api->request('get', 'profile/meta', array('pid'=>$this->base->pid));
 		}
 	}
 
@@ -875,23 +868,23 @@ class Profile_Meta
 
 		return element($key,$default_values);
 	}
-	
+
 }
 
 class Profile_Name
 {
 	private $base;
 	private $data = array();
-	
+
 	function __construct($base)
 	{
 		$this->base = $base;
 	}
-	
-	public function __set($key, $value) 
+
+	public function __set($key, $value)
 	{
 		$writable = array('first','last','company');
-		
+
 		if (in_array($key, $writable))
 		{
 			return $this->base->__set('name_'.$key,$value);
@@ -901,47 +894,47 @@ class Profile_Name
 			show_error('Cannot write to variable "'.$key.'."');
 		}
 	}
-	
-	public function __get($key) 
+
+	public function __get($key)
 	{
 		if ($key == 'full')
 		{
 			return $this->_get_name(true,false);
-		} 
+		}
 		elseif ($key == 'friendly')
 		{
 			return $this->_get_name(false,false);
-		} 
+		}
 		elseif ($key == 'full_posessive')
 		{
 			return $this->_get_name(true,true);
-		} 
+		}
 		elseif ($key == 'friendly_posessive')
 		{
 			return $this->_get_name(false,true);
-		} 
+		}
 		else
 		{
 			return $this->base->__get('name_'.$key);
 		}
 	}
-	
-	public function __toString() 
+
+	public function __toString()
 	{
 		return $this->__get('friendly');
 	}
-	
-	public function __isset($key) 
+
+	public function __isset($key)
 	{
 		return $this->base->__isset('name_'.$key);
 	}
-	
+
 	private function _get_name($full=false,$posessive=false)
 	{
 		// Is it a company?
 		if ($this->base->is_company() === true) {
 			$name = $this->base->__get('name_company');
-		
+
 		// No?  It must be a person.
 		} else {
 			$name = $this->base->__get('name_first');
@@ -950,7 +943,7 @@ class Profile_Name
 				$name.= ' '.$this->base->__get('name_last');
 			}
 		}
-		
+
 		// Posessive or Common
 		if ($posessive == true)
 		{
@@ -975,7 +968,7 @@ class Profile_Security
 {
 	private $base;
 	public $multifactor;
-	
+
 	public function __construct($base)
 	{
 		$this->base = $base;
@@ -985,9 +978,9 @@ class Profile_Security
 
 	public function validate_password($str)
 	{
-		
+
 	}
-	
+
 }
 
 abstract class Profile_Security_Multifactor
@@ -1028,7 +1021,7 @@ class Profile_Security_Multifactor_Credential
 		$q = $CI->db	->where($this->data)
 						->limit(1)
 						->delete($this->table_name);
-		
+
 		if ($CI->db->affected_rows() > 0)
 		{
 			User_Notice::success('Security credential revoked successfully.');
@@ -1050,7 +1043,7 @@ class Profile_Security_Yubikey extends Profile_Security_Multifactor
 						->limit($limit,$offset)
 						->get('auth_mf_yubikey')
 						->result_array();
-		
+
 		$data = array();
 
 		foreach ($q as $credential)
@@ -1084,21 +1077,21 @@ class Profile_Tel
 {
 	private $base;
 	private $data = array();
-	
+
 	public function __construct($base)
 	{
 		$this->base = $base;
 	}
-	
+
 	private function _get_data()
 	{
 		$CI =& get_instance();
-		
+
 		$CI->load->helpers('array');
-		
+
 		$q = $CI->db->where('pid',$this->base->pid);
 		$r = $q->limit(10)->get('profiles_tel')->result_array();
-		
+
 		if (count($r) > 0)
 		{
 			foreach ($r as $tel)
@@ -1108,16 +1101,16 @@ class Profile_Tel
 			$this->data = $data;
 			return true;
 		}
-		 
+
 	}
-	
+
 	public function fetch_array()
 	{
 		// Get Data On Every Call
 		$this->_get_data();
-		
+
 		$data = &$this->data;
-		
+
 		return $data;
 	}
 
@@ -1126,44 +1119,44 @@ class Profile_Tel
 		$prototype = new Profile_Tel_Prototype($this->base);
 		return $prototype;
 	}
-	
+
 }
 
 class Profile_Tel_Entry
 {
 	private $base;
 	private $data = array();
-	
+
 	public function __construct($base,$data)
 	{
 		$this->base = $base;
 		$this->data = $data;
 	}
-	
+
 	public function __set ($key,$value)
 	{
-		
+
 	}
-	
+
 	public function __get ($key)
 	{
 		return element($key,$this->data);
 	}
-	
-	public function __isset($key) 
+
+	public function __isset($key)
 	{
 		return isset($this->data[$key]);
 	}
-	
+
 	public function delete()
 	{
-		return $CI->db	
+		return $CI->db
 					->where('pid',$this->base->pid)
 					->where('tel',$this->data['tel'])
 					->delete('profiles_tel');
 	}
-	
-	public function __toString() 
+
+	public function __toString()
 	{
 		return $this->data['tel'];
 	}
