@@ -169,42 +169,30 @@ class Profile_Base
 	public function __get($key)
 	{
 		// Check If Data Available
-		if (is_array($this->data) != true)
+		if (is_array($this->data) !== true)
 		{
 			$this->_get_data();
 		}
 
 		// Check Again for Data Array
-		if (is_array($this->data) == true)
+		if ($this->data !== false)
 		{
-			// Prepare Key
-			$key = trim($key);
-
 			// Check If Requested Data Exists
-			if (array_key_exists($key, $this->data))
-			{
-				return (string) $this->data[$key];
-			}
-			elseif ($key == 'pid_hex')
+			if ($key == 'pid_hex')
 			{
 				return dechex($this->pid);
 			}
-
-			// If we haven't returned something, property is undefined.
-			$trace = debug_backtrace();
-			show_error(
-				'Undefined property via __get(): ' . $key .
-				' in ' . $trace[0]['file'] .
-				' on line ' . $trace[0]['line']);
+			else
+			{
+				return element($key, $this->data);
+			}
 		}
-
-		return null;
 	}
 
 	public function __isset($key)
 	{
 		// Check If Data Available
-		if (is_array($this->data) != true)
+		if (is_array($this->data) !== true)
 		{
 			$this->_get_data();
 		}
@@ -221,7 +209,7 @@ class Profile_Base
 	public function exists()
 	{
 		// Check If Data Available
-		if (is_array($this->data) != true)
+		if (is_array($this->data) !== true)
 		{
 			$this->_get_data();
 		}
