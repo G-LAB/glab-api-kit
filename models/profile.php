@@ -297,7 +297,7 @@ abstract class Profile_Prototype
 		if (empty($this->fields) === true)
 		{
 			$CI =& get_instance();
-			$this->fields = $CI->db->list_fields($this->table_name);
+			$this->fields = $CI->api->request('get', 'profile/prototype_fields', array('table'=>$this->table_name));
 		}
 		return true;
 	}
@@ -351,10 +351,7 @@ class Profile_Address
 	{
 		$CI =& get_instance();
 
-		$CI->load->helpers('array');
-
-		$q = $CI->db->where('pid',$this->base->pid);
-		$r = $q->limit(10)->get('profiles_address')->result_array();
+		$r = $CI->api->request('get', 'profile/addresses', array('pid'=>$this->base->pid));
 
 		if (count($r) > 0)
 		{
@@ -484,10 +481,7 @@ class Profile_Delegate
 	{
 		$CI =& get_instance();
 
-		$CI->load->helpers('array');
-
-		$q = $CI->db->where('pid_c',$this->base->pid);
-		$r = $q->limit(50)->get('profiles_manager')->result_array();
+		$r = $CI->api->request('get', 'profile/delegates', array('pid'=>$this->base->pid));
 
 		if (count($r) > 0)
 		{
@@ -558,11 +552,7 @@ class Profile_Email
 	{
 		$CI =& get_instance();
 
-		$CI->load->helpers('array');
-
-		$q = $CI->db	->where('pid',$this->base->pid)
-						->order_by('is_primary','DESC');
-		$r = $q->limit(10)->get('profiles_email')->result_array();
+		$r = $CI->api->request('get', 'profile/emails', array('pid'=>$this->base->pid));
 
 		if (count($r) > 0)
 		{
@@ -698,10 +688,7 @@ class Profile_Manager
 	{
 		$CI =& get_instance();
 
-		$CI->load->helpers('array');
-
-		$q = $CI->db->where('pid_p',$this->base->pid);
-		$r = $q->limit(50)->get('profiles_manager')->result_array();
+		$r = $CI->api->request('get', 'profile/managers', array('pid'=>$this->base->pid));
 
 		if (count($r) > 0)
 		{
@@ -1075,10 +1062,7 @@ class Profile_Tel
 	{
 		$CI =& get_instance();
 
-		$CI->load->helpers('array');
-
-		$q = $CI->db->where('pid',$this->base->pid);
-		$r = $q->limit(10)->get('profiles_tel')->result_array();
+		$r = $CI->api->request('get', 'profile/tels', array('pid'=>$this->base->pid));
 
 		if (count($r) > 0)
 		{
