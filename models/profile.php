@@ -88,7 +88,7 @@ class Profile extends CI_Model
 		}
 
 		// Store Reference
-		$profile = &$this->profiles[$pid];
+		$profile = $this->profiles[$pid];
 
 		// Return Reference to Profile in Class
 		return $profile;
@@ -145,14 +145,14 @@ class Profile_Base
 	{
 		$this->pid = $pid;
 
-		$this->address = new Profile_Address(&$this);
-		$this->delegate = new Profile_Delegate(&$this);
-		$this->email = new Profile_Email(&$this);
-		$this->manager = new Profile_Manager(&$this);
-		$this->meta = new Profile_Meta(&$this);
-		$this->name = new Profile_Name(&$this);
-		$this->security = new Profile_Security(&$this);
-		$this->tel = new Profile_Tel(&$this);
+		$this->address = new Profile_Address($this);
+		$this->delegate = new Profile_Delegate($this);
+		$this->email = new Profile_Email($this);
+		$this->manager = new Profile_Manager($this);
+		$this->meta = new Profile_Meta($this);
+		$this->name = new Profile_Name($this);
+		$this->security = new Profile_Security($this);
+		$this->tel = new Profile_Tel($this);
 	}
 
 	public function __set($key, $value)
@@ -357,7 +357,7 @@ class Profile_Address
 		{
 			foreach ($r as $addr)
 			{
-				$data[] = new Profile_Address_Entry(&$this->base,&$addr);
+				$data[] = new Profile_Address_Entry($this->base,$addr);
 			}
 			$this->data = $data;
 			return true;
@@ -487,7 +487,7 @@ class Profile_Delegate
 		{
 			foreach ($r as $delegate)
 			{
-				$data[] = new Profile_Delegate_Entry(&$this->base,&$delegate);
+				$data[] = new Profile_Delegate_Entry($this->base,$delegate);
 			}
 			$this->data = $data;
 			return true;
@@ -558,7 +558,7 @@ class Profile_Email
 		{
 			foreach ($r as $email)
 			{
-				$data[] = new Profile_Email_Entry(&$this->base,&$email);
+				$data[] = new Profile_Email_Entry($this->base,$email);
 			}
 			$this->data = $data;
 			return true;
@@ -591,7 +591,7 @@ class Profile_Email
 		// Get Data On Every Call
 		$this->_get_data();
 
-		$data = &$this->data;
+		$data = $this->data;
 
 		return $data;
 	}
@@ -694,7 +694,7 @@ class Profile_Manager
 		{
 			foreach ($r as $manager)
 			{
-				$data[] = new Profile_Manager_Entry(&$this->base,&$manager);
+				$data[] = new Profile_Manager_Entry($this->base,$manager);
 			}
 			$this->data = $data;
 			return true;
@@ -948,7 +948,7 @@ class Profile_Security
 	{
 		$this->base = $base;
 
-		$this->multifactor->yubikey = new Profile_Security_Yubikey(&$base);
+		$this->multifactor->yubikey = new Profile_Security_Yubikey($base);
 	}
 
 	public function validate_password($str)
@@ -1023,7 +1023,7 @@ class Profile_Security_Yubikey extends Profile_Security_Multifactor
 
 		foreach ($q as $credential)
 		{
-			$data[] = new Profile_Security_Multifactor_Credential(&$this->base,$credential,'auth_mf_yubikey');
+			$data[] = new Profile_Security_Multifactor_Credential($this->base,$credential,'auth_mf_yubikey');
 		}
 
 		return $data;
@@ -1068,7 +1068,7 @@ class Profile_Tel
 		{
 			foreach ($r as $tel)
 			{
-				$data[] = new Profile_Tel_Entry(&$this->base,&$tel);
+				$data[] = new Profile_Tel_Entry($this->base,$tel);
 			}
 			$this->data = $data;
 			return true;
@@ -1081,7 +1081,7 @@ class Profile_Tel
 		// Get Data On Every Call
 		$this->_get_data();
 
-		$data = &$this->data;
+		$data = $this->data;
 
 		return $data;
 	}
