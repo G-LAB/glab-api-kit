@@ -392,7 +392,14 @@ class Profile_Address_Entry
 
 	public function __get($key)
 	{
-		return element($key,$this->data);
+		if ($key == 'country_name')
+		{
+			return 'country name';
+		}
+		else
+		{
+			return element($key,$this->data);
+		}
 	}
 
 	public function __isset($key)
@@ -402,12 +409,12 @@ class Profile_Address_Entry
 
 	public function __toString()
 	{
-		$str = $this->__get('street1')."\n";
-		$str.= $this->__get('street2')."\n";
-		$str.= $this->__get('city').', '.$this->__get('state').'  '.$this->__get('zip')."\n";
-		$str.= $this->__get('country')."\n";
+		$str = $this->__get('street_address_1')."\n";
+		$str.= $this->__get('street_address_2')."\n";
+		$str.= $this->__get('locality').', '.$this->__get('region').'  '.$this->__get('postal_code')."\n";
+		$str.= $this->__get('country_id')."\n";
 
-		return $address;
+		return $str;
 	}
 }
 
@@ -417,13 +424,13 @@ class Profile_Address_Prototype extends Profile_Prototype
 
 	protected function callback()
 	{
-		if(isset($this->data['street1'],$this->data['city'],$this->data['state'],$this->data['zip'],$this->data['country']))
+		if(isset($this->data['street_address_1'],$this->data['locality'],$this->data['region'],$this->data['postal_code'],$this->data['country_id']))
 		{
 			return true;
 		}
 		else
 		{
-			User_Notice::error('Street, City, State, Zip, and Country are required fields.');
+			User_Notice::error('Street, City, State, Postal Code, and Country are required fields.');
 		}
 	}
 
@@ -437,8 +444,8 @@ class Profile_Address_Prototype extends Profile_Prototype
 		    case 'label':
 		    	return true;
 		    break;
-		    case 'street1':
-		    case 'street2':
+		    case 'street_address_1':
+		    case 'street_address_2':
 		        if(preg_match('/^[a-z\d\-\.\s#]*$/i',$value))
 		        {
 		        	return true;
@@ -448,16 +455,16 @@ class Profile_Address_Prototype extends Profile_Prototype
 		        	User_Notice::error('Street must contain alphanumeric characters, dashes, periods, and pound signs only.');
 		        }
 		    break;
-		    case 'city':
+		    case 'locality':
 		    	return true;
 		    break;
-		    case 'state':
+		    case 'region':
 		    	return true;
 		    break;
-		    case 'zip':
+		    case 'postal_code':
 		    	return true;
 		    break;
-		    case 'country':
+		    case 'country_id':
 		    	return true;
 		    break;
 		    default:
