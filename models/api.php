@@ -46,7 +46,12 @@ class Api extends CI_Model {
 			if (isset($result->error) === true)
 			{
 				User_Notice::error($result->error);
-				return FALSE;
+				return false;
+			}
+			elseif (empty($result) === true)
+			{
+				User_Notice::error('The API server responded with an empty result.');
+				return false;
 			}
 			else {
 				return $result;
