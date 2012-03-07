@@ -52,7 +52,7 @@ class Api extends CI_Model {
 			{
 				User_Notice::error('The API server responded with an error code. ('.$this->restclient->status().')');
 			}
-			elseif (empty($result) === true)
+			elseif (empty($result) === true  AND $this->restclient->status() != 200)
 			{
 				User_Notice::error('The API server responded with an empty result.');
 				return false;
