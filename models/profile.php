@@ -12,6 +12,7 @@ class Profile extends CI_Model
 		$this->load->helper('glib_number');
 		$this->load->helper('glib_string');
 		$this->load->library('User_Notice');
+		$this->load->model('api');
 	}
 
 	public function get($str)
@@ -236,6 +237,13 @@ class Profile_Base
 
 	private function _get_data()
 	{
+		// Mark known dead pids
+		if ($this->pid == false)
+		{
+			$this->dead = true;
+			return false;
+		}
+
 		if ($this->dead !== true)
 		{
 			$CI =& get_instance();
