@@ -398,6 +398,26 @@ class Profile_Address_Entry
 		$this->data = $data;
 	}
 
+	public function formatted ()
+	{
+		$str = $this->__get('street_address_1')."\n";
+		$str.= $this->__get('street_address_2')."\n";
+		$str.= $this->__get('locality').', '.$this->__get('region').'  '.$this->__get('postal_code')."\n";
+		$str.= $this->__get('country_id')."\n";
+
+		return $str;
+	}
+
+	public function string ()
+	{
+		$str = $this->__get('street_address_1').' ';
+		$str.= $this->__get('street_address_2').' ';
+		$str.= $this->__get('locality').', '.$this->__get('region').'  '.$this->__get('postal_code').' ';
+		$str.= $this->__get('country_id');
+
+		return $str;
+	}
+
 	public function __get($key)
 	{
 		if ($key == 'country_name')
@@ -417,12 +437,7 @@ class Profile_Address_Entry
 
 	public function __toString()
 	{
-		$str = $this->__get('street_address_1')."\n";
-		$str.= $this->__get('street_address_2')."\n";
-		$str.= $this->__get('locality').', '.$this->__get('region').'  '.$this->__get('postal_code')."\n";
-		$str.= $this->__get('country_id')."\n";
-
-		return $str;
+		return (string) $this->formatted();
 	}
 }
 
