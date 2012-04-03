@@ -48,11 +48,7 @@ class Profile extends CI_Model
 		// Email Address
 		elseif (is_email($str))
 		{
-			$q = $this->db	->select('pid')
-							->limit(1)
-							->where('email',$str)
-							->get('profiles_email')
-							->row();
+			$q = $this->api->request('get', 'profile/pid', array('email'=>$str));
 
 			if (isset($q->pid))
 			{
@@ -66,11 +62,8 @@ class Profile extends CI_Model
 		// Telephone Number
 		elseif (is_tel($str))
 		{
-			$q = $this->db	->select('pid')
-							->limit(1)
-							->where('tel',tel_dialstring($str))
-							->get('profiles_tel')
-							->row();
+			$q = $this->api->request('get', 'profile/pid',array('tel'=>$str));
+
 			if (isset($q->pid))
 			{
 				$pid = $q->pid;
@@ -80,7 +73,6 @@ class Profile extends CI_Model
 				$pid = false;
 			}
 		}
-
 
 		// Create Profile in Class If Needed
 		if (isset($this->profiles[$pid]) !== true)
