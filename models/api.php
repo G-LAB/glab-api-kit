@@ -8,18 +8,17 @@
 
 class Api extends CI_Model {
 
-	private $restclient;
-
 	function __construct ()
 	{
 		parent::__construct();
 
 		$this->load->config('api');
 		$this->load->library('rest');
+		$this->load->library('curl');
 
-		$this->restclient = new Rest(array(
+		$this->rest->initialize(array(
 			'server' => $this->config->item('api_url'),
-			'http_auth' => 'digest',
+			'http_auth' => 'basic',
 			'http_user' => $this->config->item('api_user'),
 			'http_pass' => $this->config->item('api_pass')
 		));
@@ -29,7 +28,7 @@ class Api extends CI_Model {
 	{
 		if ($format != false)
 		{
-			$this->restclient->format($format);
+			$this->rest->format($format);
 		}
 
 		// Reformat Paramaters as Array
@@ -39,20 +38,20 @@ class Api extends CI_Model {
 			$params = $params_a;
 		}
 
-		if (method_exists($this->restclient,$method) === true)
+		if (method_exists($this->rest,$method) === true)
 		{
-			$result = $this->restclient->{$method}($resource,$params);
+			$result = $this->rest->{$method}($resource,$params);
 
 			if (isset($result->error) === true)
 			{
 				User_Notice::error($result->error);
 				return false;
 			}
-			elseif ($this->restclient->status() >= 500)
+			elseif ($this->rest->status() >= 500)
 			{
-				User_Notice::error('The API server responded with an error code. ('.$this->restclient->status().')');
+				User_Notice::error('The API server responded with an error code. ('.$this->rest->status().')');
 			}
-			elseif (empty($result) === true  AND $this->restclient->status() != 200)
+			elseif (empty($result) === true  AND $this->rest->status() != 200)
 			{
 				User_Notice::error('The API server responded with an empty result.');
 				return false;
@@ -89,7 +88,7 @@ class Api extends CI_Model {
 
 	function debug ()
 	{
-		$this->restclient->debug();
+		$this->rest->debug();
 	}
 
 }
