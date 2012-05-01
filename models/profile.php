@@ -796,7 +796,8 @@ class Profile_Meta
 			'time_zone',
 			'pbx_callback',
 			'pbx_ext',
-			'pbx_ext_mbox'
+			'pbx_ext_mbox',
+			'portal_acl_groups'
 		);
 	}
 
@@ -805,16 +806,19 @@ class Profile_Meta
 		if (in_array($key, $this->meta_keys))
 		{
 			$CI =& get_instance();
-			$CI->load->helper('array');
 
 			if (is_bool($value) === true)
 			{
 				$value = (int) $value;
 			}
 
-			$CI->db->query("REPLACE INTO profiles_meta (pid,meta_key,meta_value) VALUES ('".$this->base->pid."','".$key."','".$value."')");
+			$success = $CI->api->request('post', 'profile/meta', array(
+				'pid'=>$this->base->pid,
+				'key'=>$key,
+				'value'=>$value
+			));
 
-			if ($CI->db->affected_rows() > 0)
+			if ($success == true)
 			{
 				return true;
 			}
