@@ -8,87 +8,91 @@
 
 class Api extends CI_Model {
 
-	function __construct ()
-	{
-		parent::__construct();
+  function __construct ()
+  {
+    parent::__construct();
 
-		$this->load->config('api');
-		$this->load->library('rest');
-		$this->load->library('curl');
+    $this->load->config('api');
+    $this->load->library('rest');
+    $this->load->library('curl');
 
-		$this->rest->initialize(array(
-			'server' => $this->config->item('api_url'),
-			'http_auth' => 'basic',
-			'http_user' => $this->config->item('api_user'),
-			'http_pass' => $this->config->item('api_pass')
-		));
-	}
+    $this->rest->initialize(array(
+      'server' => $this->config->item('api_url'),
+      'http_auth' => 'basic',
+      'http_user' => $this->config->item('api_user'),
+      'http_pass' => $this->config->item('api_pass')
+    ));
+  }
 
-	function request ($method, $resource, $params=array(), $format=false)
-	{
-		if ($format != false)
-		{
-			$this->rest->format($format);
-		}
+  function request ($method, $resource, $params=array(), $format=false)
+  {
+    if ($format != false)
+    {
+      $this->rest->format($format);
+    }
 
-		// Reformat Paramaters as Array
-		if (is_string($params))
-		{
-			parse_str($params,$params_a);
-			$params = $params_a;
-		}
+    // Reformat Paramaters as Array
+    if (is_string($params))
+    {
+      parse_str($params,$params_a);
+      $params = $params_a;
+    }
 
-		if (method_exists($this->rest,$method) === true)
-		{
-			$result = $this->rest->{$method}($resource,$params);
+    if (method_exists($this->rest,$method) === true)
+    {
+      $result = $this->rest->{$method}($resource,$params);
 
-			if (isset($result->error) === true)
-			{
-				User_Notice::error($result->error);
-				return false;
-			}
-			elseif ($this->rest->status() >= 500)
-			{
-				User_Notice::error('The API server responded with an error code. ('.$this->rest->status().')');
-			}
-			elseif (empty($result) === true  AND $this->rest->status() != 200)
-			{
-				User_Notice::error('The API server responded with an empty result.');
-				return false;
-			}
-			else {
-				return $result;
-			}
-		}
-		else
-		{
-			return false;
-		}
-	}
+      if (isset($result->error) === true)
+      {
+        User_Notice::error($result->error);
+        return false;
+      }
+      elseif ($this->rest->status() >= 500)
+      {
+        User_Notice::error('The API server responded with an error code. ('.$this->rest->status().')');
+      }
+      elseif (empty($result) === true  AND $this->rest->status() != 200)
+      {
+        User_Notice::error('The API server responded with an empty result.');
+        return false;
+      }
 
-	function get ($resource, $params=array(), $format=false)
-	{
-		$this->request('get', $resource, $params, $format);
-	}
+      return $result;
+    }
+    else
+    {
+      return false;
+    }
+  }
 
-	function post ($resource, $params=array(), $format=false)
-	{
-		$this->request('post', $resource, $params, $format);
-	}
+  function get ($resource, $params=array(), $format=false)
+  {
+    return $this->request('get', $resource, $params, $format);
+  }
 
-	function put ($resource, $params=array(), $format=false)
-	{
-		$this->request('put', $resource, $params, $format);
-	}
+  function post ($resource, $params=array(), $format=false)
+  {
+    return $this->request('post', $resource, $params, $format);
+  }
 
-	function delete ($resource, $params=array(), $format=false)
-	{
-		$this->request('delete', $resource, $params, $format);
-	}
+  function put ($resource, $params=array(), $format=false)
+  {
+    return $this->request('put', $resource, $params, $format);
+  }
 
-	function debug ()
-	{
-		$this->rest->debug();
-	}
+  function delete ($resource, $params=array(), $format=false)
+  {
+    return $this->request('delete', $resource, $params, $format);
+  }
+
+  function debug ()
+  {
+    return $this->rest->debug();
+  }
+
+  function status ()
+  {
+    return $this->rest->status();
+  }
 
 }
